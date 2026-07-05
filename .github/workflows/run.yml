@@ -8,46 +8,76 @@ on:
 jobs:
   run-task:
     runs-on: ubuntu-latest
+
     permissions:
       contents: write
 
     steps:
+      # 1. Checkout
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # 2. Cache Python dependencies
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: pip-${{ runner.os }}-${{ hashFiles('requirements.txt') }}
+          restore-keys: |
+            pip-${{ runner.os }}-
+
+      # 3. Cache Playwright browsers
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ms-playwright-${{ runner.os }}-v1
+          restore-keys: |
+            ms-playwright-${{ runner.os }}-
+
+      # 4. Setup Node.js
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: 'npm'
 
+      # 5. Install Wrangler
       - name: Install Wrangler
         run: npm install -g wrangler
 
-      - name: Set up Python
+      # 6. Setup Python
+      - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
+      # 7. Install Python dependencies
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
 
+      # 8. Install Playwright browsers (chromium only)
+      - name: Install Playwright browsers
+        run: |
+          python -m playwright install chromium --with-deps
+
+      # 9. Run your script
       - name: Run script
         env:
           YCOONAME: ${{ secrets.YCOONAME }}
           YCOOPWD: ${{ secrets.YCOOPWD }}
         run: python app.py
 
-      # ⭐⭐⭐ 新增：获取真实外网 IP 并写入文件 ⭐⭐⭐
+      # 10. Get public IP
       - name: Get public IP
         run: |
           REAL_IP=$(curl -s https://api.ipify.org)
           echo "Public IP: $REAL_IP"
           echo "$(date -u '+%Y-%m-%d %H:%M:%S UTC') | $REAL_IP" >> public_ip.txt
 
-
-      # 7. 创建 keepalive 文件
+      # 11. Create keepalive file
       - name: Create keep-alive commit
         run: |
           echo "Last backup: $(date -u '+%Y-%m-%d %H:%M:%S UTC') | ID: $(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 8)" > keepalive.md
@@ -55,10 +85,9 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add keepalive.md public_ip.txt || true
 
-      # 8. 自动提交
-      - name: Commit & Push if changed
-        uses: stefanzweifel/git-auto-commit-action@v5
-        with:
-          commit_message: "keepalive"
-          file_pattern: keepalive.md public_ip.txt
-          push_options: '--force'
+      # 12. Safe commit & push (避免冲突)
+      - name: Commit & Push safely
+        run: |
+          git pull --rebase
+          git commit -m "keepalive" || echo "No changes"
+          git push
