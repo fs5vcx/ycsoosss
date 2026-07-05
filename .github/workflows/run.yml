@@ -35,9 +35,8 @@ jobs:
 
       - name: Run script
         env:
-          CA_URL: ${{ secrets.CA_URL }}
-          ycooname: ${{ secrets.ycooname }}
-          ycoopwd: ${{ secrets.ycoopwd }}
+          YCOONAME: ${{ secrets.YCOONAME }}
+          YCOOPWD: ${{ secrets.YCOOPWD }}
         run: python app.py
 
       # ⭐⭐⭐ 新增：获取真实外网 IP 并写入文件 ⭐⭐⭐
