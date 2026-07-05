@@ -1,0 +1,65 @@
+name: Auto Run Worker
+
+on:
+  schedule:
+    - cron: '12 */6 * * *'
+  workflow_dispatch:
+
+jobs:
+  run-task:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install Wrangler
+        run: npm install -g wrangler
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+
+      - name: Run script
+        env:
+          CA_URL: ${{ secrets.CA_URL }}
+          ycooname: ${{ secrets.ycooname }}
+          ycoopwd: ${{ secrets.ycoopwd }}
+        run: python app.py
+
+      # ⭐⭐⭐ 新增：获取真实外网 IP 并写入文件 ⭐⭐⭐
+      - name: Get public IP
+        run: |
+          REAL_IP=$(curl -s https://api.ipify.org)
+          echo "Public IP: $REAL_IP"
+          echo "$(date -u '+%Y-%m-%d %H:%M:%S UTC') | $REAL_IP" >> public_ip.txt
+
+
+      # 7. 创建 keepalive 文件
+      - name: Create keep-alive commit
+        run: |
+          echo "Last backup: $(date -u '+%Y-%m-%d %H:%M:%S UTC') | ID: $(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 8)" > keepalive.md
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add keepalive.md public_ip.txt || true
+
+      # 8. 自动提交
+      - name: Commit & Push if changed
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "keepalive"
+          file_pattern: keepalive.md public_ip.txt
+          push_options: '--force'
