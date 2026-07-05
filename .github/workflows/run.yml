@@ -69,14 +69,15 @@ jobs:
           YCOOPWD: ${{ secrets.YCOOPWD }}
         run: python app.py
 
-      # 10. Get public IP
+      # ⭐⭐⭐ 新增：获取真实外网 IP 并写入文件 ⭐⭐⭐
       - name: Get public IP
         run: |
           REAL_IP=$(curl -s https://api.ipify.org)
           echo "Public IP: $REAL_IP"
           echo "$(date -u '+%Y-%m-%d %H:%M:%S UTC') | $REAL_IP" >> public_ip.txt
 
-      # 11. Create keepalive file
+
+      # 7. 创建 keepalive 文件
       - name: Create keep-alive commit
         run: |
           echo "Last backup: $(date -u '+%Y-%m-%d %H:%M:%S UTC') | ID: $(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 8)" > keepalive.md
@@ -84,9 +85,10 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add keepalive.md public_ip.txt || true
 
-      # 12. Safe commit & push (避免冲突)
-      - name: Commit & Push safely
-        run: |
-          git pull --rebase
-          git commit -m "keepalive" || echo "No changes"
-          git push
+      # 8. 自动提交
+      - name: Commit & Push if changed
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "keepalive"
+          file_pattern: keepalive.md public_ip.txt
+          push_options: '--force'
