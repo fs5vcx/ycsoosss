@@ -7,8 +7,8 @@ DEBUG = os.environ.get("DEBUG", "0") == "1"
 
 
 def login_and_sign():
-    username = os.environ.get("ycooname")
-    password = os.environ.get("ycoopwd")
+    username = os.environ.get("YCOONAME")
+    password = os.environ.get("YCOOPWD")
 
     if not username or not password:
         print("[-] 请设置环境变量 ycooname (用户名) 和 ycoopwd (密码)")
