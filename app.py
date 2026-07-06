@@ -44,11 +44,11 @@ def login_and_sign():
         try:
             print("[*] 打开首页")
             page.goto("https://ycoo.net/", timeout=30000)
-            page.wait_for_timeout(2000)
+            page.wait_for_timeout(1500)
 
             print("[*] 打开登录弹窗")
             page.click('a[href*="mod=logging&action=login"]')
-            page.wait_for_timeout(2000)
+            page.wait_for_timeout(1500)
 
             print("[*] 输入用户名密码")
             page.fill('input[name="username"]', username)
@@ -56,16 +56,17 @@ def login_and_sign():
 
             print("[*] 点击登录按钮")
             page.click('button[name="loginsubmit"], button[type="submit"]:has-text("登录")')
-            page.wait_for_timeout(4000)
+            page.wait_for_timeout(3000)
 
-            # 登录结果判断
             page_content = page.content()
 
+            # 登录失败判断
             if any(kw in page_content for kw in ["密码错误", "登录失败", "错误"]):
                 print("[-] 登录失败")
                 browser.close()
                 return False
 
+            # 登录成功判断
             if "退出" in page_content or username in page_content:
                 print("[+] 登录成功")
             else:
@@ -75,12 +76,12 @@ def login_and_sign():
 
             print("[*] 打开签到页面")
             page.goto("https://ycoo.net/k_misign-sign.html", timeout=30000)
-            page.wait_for_timeout(2000)
+            page.wait_for_timeout(1500)
 
             page_content = page.content()
 
-            # --- 正确的已签到判断 ---
-            if any(kw in page_content for kw in ["您今天已经签到", "今日已签到", "已经签到", "已签到"]):
+            # --- 已签到判断（只保留“您今天已经签到”和按钮状态） ---
+            if "您今天已经签到" in page_content:
                 print("[+] 今天已经签到过了（文字判断）")
                 browser.close()
                 return True
@@ -90,24 +91,13 @@ def login_and_sign():
                 browser.close()
                 return True
 
-            # 查找签到按钮
+            # --- 未签到：必须点击按钮 ---
             sign_button = page.query_selector("#JD_sign")
 
-            if not sign_button:
-                print("[+] 今天已经签到过了（按钮不存在）")
-                browser.close()
-                return True
-
-            btn_text = sign_button.inner_text().strip()
-
-            if DEBUG:
-                print(f"[DEBUG] 签到按钮文字: {btn_text}")
-
-            # 按钮文字必须是“签到”
-            if btn_text == "签到":
-                print("[*] 点击签到按钮")
+            if sign_button:
+                print("[*] 检测到签到按钮，开始签到")
                 sign_button.click()
-                page.wait_for_timeout(4000)
+                page.wait_for_timeout(3000)
 
                 page_content = page.content()
 
@@ -116,14 +106,14 @@ def login_and_sign():
                     browser.close()
                     return True
 
-                print("[?] 签到结果未知")
-                browser.close()
-                return False
-
-            else:
-                print(f"[+] 今天已经签到过了（按钮文字: {btn_text}）")
+                print("[?] 签到结果未知，但按钮已点击")
                 browser.close()
                 return True
+
+            # 按钮不存在 → 已签到
+            print("[+] 今天已经签到过了（按钮不存在）")
+            browser.close()
+            return True
 
         except Exception as e:
             print(f"[-] 错误: {e}")
