@@ -80,7 +80,7 @@ def login_and_sign():
 
             page_content = page.content()
 
-            # --- 已签到判断（只保留“您今天已经签到”和按钮状态） ---
+            # --- 已签到判断（只保留最准确的两个标记） ---
             if "您今天已经签到" in page_content:
                 print("[+] 今天已经签到过了（文字判断）")
                 browser.close()
@@ -96,7 +96,7 @@ def login_and_sign():
             if shade:
                 print("[*] 检测到遮罩层，强制关闭")
                 page.evaluate("document.getElementById('layui-layer-shade1').remove();")
-                page.wait_for_timeout(500)
+                page.wait_for_timeout(300)
 
             # --- 未签到：必须点击按钮 ---
             sign_button = page.query_selector("#JD_sign")
@@ -112,18 +112,25 @@ def login_and_sign():
                     page.wait_for_timeout(300)
 
                 sign_button.click()
-                page.wait_for_timeout(3000)
 
-                page_content = page.content()
-
-                if any(kw in page_content for kw in ["签到成功", "签到奖励", "恭喜"]):
-                    print("[+] 签到成功!")
+                # --- 最终优化：等待签到成功后的按钮状态 ---
+                try:
+                    page.wait_for_selector(".btn.btnvisted", timeout=10000)
+                    print("[+] 签到成功!（检测到 btnvisted）")
                     browser.close()
                     return True
 
-                print("[?] 签到结果未知，但按钮已点击")
-                browser.close()
-                return True
+                except TimeoutError:
+                    # 如果按钮没变，检查签到排名文字
+                    page_content = page.content()
+                    if "您的签到排名" in page_content:
+                        print("[+] 签到成功!（检测到签到排名）")
+                        browser.close()
+                        return True
+
+                    print("[?] 签到结果未知，但按钮已点击")
+                    browser.close()
+                    return True
 
             # 按钮不存在 → 已签到
             print("[+] 今天已经签到过了（按钮不存在）")
