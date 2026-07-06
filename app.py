@@ -91,11 +91,26 @@ def login_and_sign():
                 browser.close()
                 return True
 
+            # --- 处理遮罩层 ---
+            shade = page.query_selector("#layui-layer-shade1")
+            if shade:
+                print("[*] 检测到遮罩层，强制关闭")
+                page.evaluate("document.getElementById('layui-layer-shade1').remove();")
+                page.wait_for_timeout(500)
+
             # --- 未签到：必须点击按钮 ---
             sign_button = page.query_selector("#JD_sign")
 
             if sign_button:
                 print("[*] 检测到签到按钮，开始签到")
+
+                # 再次检查遮罩层
+                shade = page.query_selector("#layui-layer-shade1")
+                if shade:
+                    print("[*] 遮罩层再次出现，强制关闭")
+                    page.evaluate("document.getElementById('layui-layer-shade1').remove();")
+                    page.wait_for_timeout(300)
+
                 sign_button.click()
                 page.wait_for_timeout(3000)
 
